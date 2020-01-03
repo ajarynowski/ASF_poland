@@ -1,0 +1,259 @@
+---
+title: "series_ global ASF Global time serie"
+author: "AJ"
+date: "November 26, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+time=read.csv("Outbreak_list4034120084163220625.csv")
+library(plyr)
+library(ggplot2)
+library(dplyr)
+library(scales)
+library(rworldmap)
+library(maps)
+library(dbscan)
+#install.packages("dbscan")
+
+
+```
+
+
+
+```{r }
+#time=read.csv("Outbreak_list3113940912961097576.csv")
+
+time=time[,-c(21:24)]
+time=time[-c(1,2),]
+time$Month <- format(as.Date(time$observationDate, "%d/%m/%y"), "%m")
+time$data <- as.Date(time$observationDate, "%d/%m/%Y")
+
+time$year <- format(as.Date(time$observationDate, "%d/%m/%Y"), "%Y")
+time$year_n=as.numeric(time$year)
+
+lista=plyr::count(time$speciesDescription)
+time_a=time[(time$region=="Africa"), ]
+time_we=time[(time$region!="Africa"), ]
+
+
+
+```
+
+
+
+Seasonality
+
+```{r }
+
+
+WB=time_we[(time_we$speciesDescription =="wild, wild boar"), ]
+WB_serie=plyr::count(WB$Month)
+WB_serie=WB_serie[-13,]
+WB_serie$host="WB"
+
+pig=time_we[(time_we$speciesDescription =="domestic, swine"), ]
+pig_serie=plyr::count(pig$Month)
+pig_serie=pig_serie[-13,]
+pig_serie$host="pig"
+infect_miesiacami_= ddply(time_we,.(Month, speciesDescription), summarise,  counts =length(Month))
+
+im2=rbind(pig_serie,WB_serie)
+im2$month=im2$x
+im2$cases=im2$freq
+
+
+p=ggplot() + geom_point(aes(x = month, y = cases, colour = host), im2) +
+
+  ggtitle("Infections per month grouped by host animal") +
+     scale_color_brewer(palette="Paired")+theme_minimal()
+p
+
+#only Poland
+
+WB=time_my2[(time_my2$speciesDescription =="wild, wild boar"), ]
+WB_serie=plyr::count(WB$Month)
+WB_serie=WB_serie[-13,]
+WB_serie$host="WB"
+
+pig=time_my2[(time_my2$speciesDescription =="domestic, swine"), ]
+pig_serie=plyr::count(pig$Month)
+pig_serie=pig_serie[-13,]
+pig_serie$host="pig"
+
+infect_miesiacami_= ddply(time_my2,.(Month, speciesDescription), summarise,  counts =length(Month))
+
+im2=rbind(pig_serie,WB_serie)
+im2$month=im2$x
+im2$cases=im2$freq
+
+im2$months <-as.numeric(paste(im2$month))
+im3 <-im2[order(im2$months),]
+
+
+p=ggplot() + geom_point(aes(x = months, y = cases, colour = host), im3) +
+
+  ggtitle("Infections per month grouped by host animal") +
+     scale_color_brewer(palette="Paired")+theme_minimal()+
+  xlim(1,12)
+
+p
+
+im3$notifications=im3$freq
+
+
+l=rbind(im3[4,], im3[4,], im3[4,])
+l$notifications=0
+l$months[1]=2
+l$months[2]=4
+l$months[3]=12
+im4=rbind(im3,l)
+p= ggplot(im4, aes(factor(months), notifications, fill = host)) + 
+  geom_bar(stat="identity", position = "dodge") + 
+  scale_fill_brewer(palette = "Set1") +
+   ggtitle("Infections per month grouped by host animal")
+
+p
+
+histy2=histy[,c(2,3,6)]
+#histy3 <- rbind(c('i','b','id_factor'), histy2)
+histy3=histy2
+mat=matrix(nrow=2,ncol=12)
+#mat[1,]=histy3$id_factor
+mat[1,]=histy3$i
+mat[2,]=histy3$b
+
+
+barplot(mat,
+main = "Infections per month grouped by interior/border county",
+xlab = "Month",
+ylab = "Notifications",
+beside = TRUE,
+col = c("red","yellow")
+)
+legend("top",
+c("interior","border"),
+fill = c("red","yellow")
+)
+
+```
+
+
+
+
+
+
+Outbreak map
+
+
+```{r }
+time_a=time[(time$region=="Africa"), ]
+time_wa=time_we[(time_we$country!="Italy"), ]
+
+#dev.off()
+newmap <- getMap(resolution = "li")
+  time_e=time_wa
+plot(newmap, xlim = c(20, 130), ylim = c(10, 70), asp = 1.2)
+points(time_e$longitude, time_e$latitude, col = time_e$year_n, cex = 1.6)
+legend('topright', legend =unique(time_e$year_n), col=unique(time_e$year_n), pch=21)
+
+# for (i in c(2007:2019)) {
+#   time_e=time_we[(time_we$year_n ==i), ]
+# 
+# points(time_e$longitude, time_e$latitude, col = time_e$year_n, cex = .6)
+# }
+#p=ggplot(newmap, xlim = c(10, 110), ylim = c(10, 70), asp = 1)
+
+plot(newmap, xlim = c(10, 140), ylim = c(0, 70), asp = 1.2)
+points(time_e$longitude, time_e$latitude, col = time_e$year_n, cex = 1.1)
+legend('topright', legend =unique(time_e$year_n), col=unique(time_e$year_n), pch=21)
+
+```
+
+
+
+```{r }
+data("world.cities")
+PL <- world.cities %>% filter(country.etc == "Poland")
+# wybranie odpowiednich danych do macierzy
+x <- select(PL, long, lat)
+# bezpo?rednie znajdowanie kNN w danych (przy u?yciu kd-tree)
+nn <- kNN(x, k=5)
+# wizualizacja 5 najbli?szych s?siad?w
+plot(nn, x)
+# wizualizacja 2-NN s?siad?w
+plot(kNN(nn, k = 2), x)
+
+```
+
+
+Clustering
+
+```{r }
+# STWORZENIE PRZYK?ADOWEGO ZBIORU DANYCH
+time_my=time_e[(time_e$region=="Europe"), ]
+#rok 2019
+time_my=time_my[(time_my$year_n==2019), ]
+
+
+x=matrix(nrow=dim(time_my)[1],ncol=2)
+x[,1]=time_my$longitude
+x[,2]=time_my$latitude
+#plot(x)
+#URUCHOMIENIE FUNKCJI DBSCAN
+ds <- dbscan(x, eps = 0.2)
+# WIZUALIZACJA
+plot(newmap, xlim = c(0, 80), ylim = c(10, 70), asp = 1)
+
+points(x, col=ds$cluster) 
+#WYWO?ANIE INFORMACJI O KLASTRACH
+plot(newmap, xlim = c(10, 50), ylim = c(40, 70), asp = 1)
+
+points(time_my$longitude, time_my$latitude, col = time_my$country, cex = 1.6)
+#ds
+
+#Poland selection
+time_my2=time_we[(time_we$country=="Poland"), ]
+time_my2=time_e[(time_e$country=="Poland"), ]
+time_my2$time=(as.numeric(time_my2$data)-15775)/(18204-15775)
+x=matrix(nrow=dim(time_my2)[1],ncol=2)
+x[,1]=time_my2$longitude
+x[,2]=time_my2$latitude
+# 3 dimention - time 
+
+x=matrix(nrow=dim(time_my2)[1],ncol=3)
+x[,1]=time_my2$longitude
+x[,2]=time_my2$latitude
+# time scaling
+time_scale=2
+x[,3]=time_my2$time*time_scale
+#plot(x)
+#URUCHOMIENIE FUNKCJI DBSCAN
+ds <- dbscan(x, eps = 0.1)
+# WIZUALIZACJA
+plot(newmap, xlim = c(19, 22), ylim = c(48, 55), asp = 1)
+
+points(x, col=ds$cluster) 
+
+plot(newmap, xlim = c(19, 22), ylim = c(48, 55), asp = 1)
+points(time_e$longitude, time_e$latitude, col = time_e$year_n, cex = 1.1)
+legend('topright', legend =unique(time_e$year_n), col=unique(time_e$year_n), pch=21)
+
+
+plot(newmap, xlim = c(19, 22), ylim = c(48, 55), asp = 1)
+points(time_my2$longitude, time_my2$latitude, col = time_my2$year_n, cex = 0.7)
+legend('topright', legend =unique(time_my2$year_n), col=unique(time_my2$year_n), pch=20)
+
+
+```
+
+
+
+
+```{r }
+
+```
+
+
+
